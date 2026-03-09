@@ -42,6 +42,8 @@ const MAX_STEPS = 500; // prevent infinite loops in sandbox
 
 /* ==================== GLOBAL STATE ==================== */
 let canvas, ctx;
+let userRun = false;
+let commandExecuted = false;
 let levelData = null; // current level JSON
 let player = null;
 let enemies = [];
@@ -97,6 +99,8 @@ function resetLevel(){
 async function loadLevel(id){
   clearConsole();
   commandQueue = [];
+  userRun = false;
+  commandExecuted = false;
   const data = await loadJSON(`levels/level${id}.json`);
   levelData = data; levelData.id = id;
   // parse map tiles (0=wall,1=floor)
@@ -146,11 +150,10 @@ function gameLoop(){
   enemies.forEach(e=>e.draw());
   items.forEach(i=>i.draw());
   // win condition
-  if(enemies.length===0){
-    log('✅ Level cleared!');
-    // auto‑load next level after short delay
-    setTimeout(()=>{ if(levelData.id<10) loadLevel(levelData.id+1); },1500);
-  }
+if(enemies.length===0 && commandExecuted && userRun){
+  log('✅ Level cleared!');
+  setTimeout(()=>{ if(levelData.id<10) loadLevel(levelData.id+1); },1500);
+}
 }
 
 function isWalkable(x,y){
@@ -169,6 +172,8 @@ function enqueueCommand(cmd){
 function processCommands(){
   if(commandQueue.length===0) return;
   const cmd = commandQueue.shift();
+  // mark that a user command was executed
+  commandExecuted = true;
   // cmd: {type:'move', dir:'up'} etc.
   switch(cmd.type){
     case 'move':
@@ -251,6 +256,9 @@ function runUserCode(){
   const code = document.getElementById('codeEditor').value;
   const iframe = document.getElementById('sandbox');
   clearConsole();
+  // reset flags for this run
+  userRun = true;
+  commandExecuted = false;
   // ensure we have only one listener
   window.removeEventListener('message', sandboxListener);
   window.addEventListener('message', sandboxListener);
