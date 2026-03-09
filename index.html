@@ -42,8 +42,6 @@ const MAX_STEPS = 500; // prevent infinite loops in sandbox
 
 /* ==================== GLOBAL STATE ==================== */
 let canvas, ctx;
-let userRun = false;
-let commandExecuted = false;
 let levelData = null; // current level JSON
 let player = null;
 let enemies = [];
@@ -51,6 +49,8 @@ let items = [];
 let commandQueue = [];
 let sandboxReady = false;
 let consoleEl, objectiveEl;
+let userRun = false;
+let commandExecuted = false;
 
 /* ==================== UTILITIES ==================== */
 function log(msg) {
@@ -139,9 +139,7 @@ function gameLoop(){
     const dirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
     const dir = dirs[Math.floor(Math.random()*dirs.length)];
     const nx=e.x+dir.dx, ny=e.y+dir.dy;
-    if(isWalkable(nx,ny) && !isOccupied(nx,ny)) {
-      e.x=nx; e.y=ny;
-    }
+    if(isWalkable(nx,ny) && !isOccupied(nx,ny)) { e.x=nx; e.y=ny; }
   });
   // render
   ctx.clearRect(0,0,canvas.width,canvas.height);
@@ -149,11 +147,11 @@ function gameLoop(){
   player.draw();
   enemies.forEach(e=>e.draw());
   items.forEach(i=>i.draw());
-  // win condition
-if(enemies.length===0 && commandExecuted && userRun){
-  log('✅ Level cleared!');
-  setTimeout(()=>{ if(levelData.id<10) loadLevel(levelData.id+1); },1500);
-}
+  // win condition (requires user to have executed a command)
+  if(enemies.length===0 && commandExecuted && userRun){
+    log('✅ Level cleared!');
+    setTimeout(()=>{ if(levelData.id<10) loadLevel(levelData.id+1); },1500);
+  }
 }
 
 function isWalkable(x,y){
@@ -174,7 +172,6 @@ function processCommands(){
   const cmd = commandQueue.shift();
   // mark that a user command was executed
   commandExecuted = true;
-  // cmd: {type:'move', dir:'up'} etc.
   switch(cmd.type){
     case 'move':
       const dirMap={up:{dx:0,dy:-1},down:{dx:0,dy:1},left:{dx:-1,dy:0},right:{dx:1,dy:0}};
@@ -185,7 +182,6 @@ function processCommands(){
       }
       break;
     case 'attack':
-      // attack adjacent enemy (first found)
       const adj = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
       for(const a of adj){
         const ex=player.x+a.dx, ey=player.y+a.dy;
@@ -193,16 +189,13 @@ function processCommands(){
         if(idx!==-1){ enemies.splice(idx,1); log('💥 Enemy defeated'); break; }
       }
       break;
-case 'pick':
-        // find item at player position with matching type
-        const idxItem = items.findIndex(it=> it.x===player.x && it.y===player.y && it.type===cmd.typeName);
-        if(idxItem!==-1){
-          const taken = items.splice(idxItem,1)[0];
-          log(`Picked up ${taken.type}`);
-        } else {
-          log('Nothing to pick here');
-        }
-        break;
+    case 'pick':
+      const idxItem = items.findIndex(it=> it.x===player.x && it.y===player.y && it.type===cmd.typeName);
+      if(idxItem!==-1){
+        const taken = items.splice(idxItem,1)[0];
+        log(`Picked up ${taken.type}`);
+      } else { log('Nothing to pick here'); }
+      break;
     default:
       console.warn('Unknown command',cmd);
   }
@@ -211,7 +204,6 @@ case 'pick':
 /* ==================== SANDBOX ==================== */
 function initSandbox(){
   const iframe = document.getElementById('sandbox');
-  // Build srcdoc with a tiny wrapper that receives code via postMessage
   const src = `
     <script>
       let steps=0;
@@ -224,13 +216,11 @@ function initSandbox(){
         log: msg => parent.postMessage({type:'log', msg}, '*'),
         getEnemies: () => enemyData.slice()
       };
-      // expose shortcuts so user code can call move() directly
       const move = API.move;
       const attack = API.attack;
       const pick = API.pick;
       const log = API.log;
       const getEnemies = API.getEnemies;
-      // receive messages from parent
       window.addEventListener('message', e=>{
         const d = e.data;
         if(d.type==='init'){
@@ -244,10 +234,9 @@ function initSandbox(){
           }
         }
       });
-${'</scr' + 'ipt>'}
+    <\/script>
   `;
   iframe.srcdoc = src;
-  // ensure sandbox is ready before we can send code
   sandboxReady = true;
 }
 
@@ -256,16 +245,12 @@ function runUserCode(){
   const code = document.getElementById('codeEditor').value;
   const iframe = document.getElementById('sandbox');
   clearConsole();
-  // reset flags for this run
   userRun = true;
   commandExecuted = false;
-  // ensure we have only one listener
   window.removeEventListener('message', sandboxListener);
   window.addEventListener('message', sandboxListener);
-  // first send current enemies data
   const enemyInfo = enemies.map(e=>({x:e.x, y:e.y}));
   iframe.contentWindow.postMessage({type:'init', enemies: enemyInfo, player: {x: player.x, y: player.y}}, '*');
-  // then send the script to run
   iframe.contentWindow.postMessage({type:'run', code}, '*');
 }
 
@@ -282,6 +267,6 @@ function sandboxListener(event){
 }
 
 window.onload = init;
-${'</scr' + 'ipt>'}
+</script>
 </body>
 </html>
