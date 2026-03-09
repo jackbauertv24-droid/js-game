@@ -41,6 +41,16 @@ const MAP_COLS = 20; // width in tiles
 const MAP_ROWS = 15; // height in tiles
 const FPS = 60;
 const MAX_STEPS = 500; // prevent infinite loops in sandbox
+// ---- Sprite sheet mapping ----
+// Adjust OFFSET if the sprite sheet has an extra margin row/column.
+const TILESET_OFFSET = 0;
+const SPRITE = {
+  WALL: 0 + TILESET_OFFSET,
+  FLOOR: 1 + TILESET_OFFSET,
+  PLAYER: 2 + TILESET_OFFSET,
+  ENEMY: 3 + TILESET_OFFSET,
+  ITEM: 4 + TILESET_OFFSET,
+};
 
 /* ==================== GLOBAL STATE ==================== */
 let canvas, ctx;
@@ -75,14 +85,14 @@ class Entity {
     this.x = x; this.y = y; this.type = type; // 'player','enemy','item'
     this.hp = type==='enemy'?1:undefined;
   }
-  draw() {
-    // sprite sheet indices (based on the loaded sprite sheet)
-    const idx = this.type === 'player' ? 2 :
-                this.type === 'enemy'  ? 3 : 4; // item
-    ctx.drawImage(spriteImg,
-      idx * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE,
-      this.x * TILE_SIZE, this.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
-  }
+    draw() {
+      // sprite sheet indices (based on the loaded sprite sheet)
+      const idx = this.type === 'player' ? SPRITE.PLAYER :
+                  this.type === 'enemy'  ? SPRITE.ENEMY : SPRITE.ITEM;
+      ctx.drawImage(spriteImg,
+        idx, 0, TILE_SIZE, TILE_SIZE,
+        this.x * TILE_SIZE, this.y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    }
 }
 
 /* ==================== GAME LOGIC ==================== */
@@ -119,9 +129,21 @@ async function loadLevel(id){
   enemies = levelData.enemies.map(e=>new Entity(e.x, e.y, 'enemy'));
   items = levelData.items.map(i=>{ const e = new Entity(i.x, i.y, 'item'); e.itemType = i.type; return e; });
   objectiveEl.textContent = `Level ${id}: ${levelData.objective}`;
-  document.getElementById('hints').textContent = levelData.hint || '';
-  goalPos = levelData.goal || null;
-  initSandbox();
+   document.getElementById('hints').textContent = levelData.hint || '';
+   // Determine goal position. If the level JSON defines a goal, use it;
+   // otherwise, pick the rightmost floor tile as the default exit.
+   if (levelData.goal) {
+     goalPos = levelData.goal;
+   } else {
+     let maxX = -1, goalY = 0;
+     levelData.tiles.forEach((row, y) => {
+       row.forEach((tile, x) => {
+         if (tile === 1 && x > maxX) { maxX = x; goalY = y; }
+       });
+     });
+     goalPos = maxX >= 0 ? { x: maxX, y: goalY } : null;
+   }
+   initSandbox();
 }
 
 function drawMap(){
@@ -130,9 +152,9 @@ function drawMap(){
   for(let y=0; y<rows; y++){
     for(let x=0; x<cols; x++){
       const tileId = levelData.tiles[y][x]; // 0 = wall, 1 = floor
-      ctx.drawImage(spriteImg,
-        tileId * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE,
-        x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
+        ctx.drawImage(spriteImg,
+          (tileId + TILESET_OFFSET) * TILE_SIZE, 0, TILE_SIZE, TILE_SIZE,
+          x * TILE_SIZE, y * TILE_SIZE, TILE_SIZE, TILE_SIZE);
     }
   }
 }
@@ -152,12 +174,16 @@ function gameLoop(){
   player.draw();
   enemies.forEach(e=>e.draw());
   items.forEach(i=>i.draw());
-  // win condition
-  const goalMet = goalPos ? (player.x===goalPos.x && player.y===goalPos.y) : true;
-  if(enemies.length===0 && commandExecuted && userRun && goalMet){
-    log('✅ Level cleared!');
-    setTimeout(()=>{ if(levelData.id<10) loadLevel(levelData.id+1); },1500);
-  }
+   // win condition
+   // A level is cleared only when the player stands on the goal tile
+   // and all enemies have been removed (if any). This prevents auto‑solve.
+   const goalReached = goalPos && (player.x===goalPos.x && player.y===goalPos.y);
+   const enemiesCleared = enemies.length===0;
+   if(goalReached && enemiesCleared && userRun){
+     log('✅ Level cleared!');
+     // Give the player a moment to see the message before advancing.
+     setTimeout(()=>{ if(levelData.id<10) loadLevel(levelData.id+1); },1500);
+   }
 }
 
 function isWalkable(x,y){
@@ -209,14 +235,16 @@ function initSandbox(){
     <script>
       let steps=0;
       const MAX_STEPS=${MAX_STEPS};
-      let enemyData = [];
-      const API = {
-        move: dir => parent.postMessage({type:'cmd', cmd:{type:'move', dir}}, '*'),
-        attack: () => parent.postMessage({type:'cmd', cmd:{type:'attack'}}, '*'),
-        pick: typeName => parent.postMessage({type:'cmd', cmd:{type:'pick', typeName}}, '*'),
-        log: msg => parent.postMessage({type:'log', msg}, '*'),
-        getEnemies: () => enemyData.slice()
-      };
+       let enemyData = [];
+       let playerData = null;
+       const API = {
+         move: dir => parent.postMessage({type:'cmd', cmd:{type:'move', dir}}, '*'),
+         attack: () => parent.postMessage({type:'cmd', cmd:{type:'attack'}}, '*'),
+         pick: typeName => parent.postMessage({type:'cmd', cmd:{type:'pick', typeName}}, '*'),
+         log: msg => parent.postMessage({type:'log', msg}, '*'),
+         getEnemies: () => enemyData.slice(),
+         getPlayer: () => ({ x: playerData?.x, y: playerData?.y })
+       };
       const move = API.move;
       const attack = API.attack;
       const pick = API.pick;
@@ -224,14 +252,9 @@ function initSandbox(){
       const getEnemies = API.getEnemies;
       window.addEventListener('message', e=>{
         const d = e.data;
-        if(d.type==='init'){
-          enemyData = d.enemies || [];
-        } else if(d.type==='run'){
-          try {
-            const fn = new Function('API', d.code);
-            fn(API);
-          } catch(err){
-            parent.postMessage({type:'error', msg: err.message}, '*');
+if(d.type==='init'){
+            enemyData = d.enemies || [];
+            playerData = d.player || null;
           }
         }
       });
