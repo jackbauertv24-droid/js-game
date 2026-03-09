@@ -31,8 +31,13 @@ open http://localhost:8000/index.html
 
 ## Deploying to GitHub Pages
 1. Commit the repository.
-2. In GitHub, enable **Pages** on the `main` (or `gh-pages`) branch, selecting the root folder.
-3. GitHub will serve `https://<your‑username>.github.io/<repo>/index.html`.
+2. In GitHub, enable **Pages** on the `gh-pages` branch, selecting the root folder.
+3. GitHub will serve `https://<your‑username>.github.io/js-game/`.
+
+You can also view the live demo directly at:
+```
+https://<your‑username>.github.io/js-game/
+```
 
 ## License
 Free assets are used from the **Kenney** public domain asset packs (CC0).  The source code in this repository is released under the MIT License.
