@@ -112,14 +112,16 @@ function init() {
   sctx.fillRect(TILE_SIZE * 4, 0, TILE_SIZE, TILE_SIZE);
   spriteImg = new Image();
   spriteImg.src = sheet.toDataURL();
+  // When the sprite sheet is ready, initialize UI and start the game
+  spriteImg.onload = () => {
+    consoleEl = document.getElementById('console');
+    objectiveEl = document.getElementById('objective');
+    document.getElementById('runBtn').addEventListener('click', runUserCode);
+    document.getElementById('resetBtn').addEventListener('click', resetLevel);
+    loadLevel(1);
+    setInterval(gameLoop, 1000 / FPS);
+  };
   // -----------------------------------------------------------------
-
-  consoleEl = document.getElementById('console');
-  objectiveEl = document.getElementById('objective');
-  document.getElementById('runBtn').addEventListener('click', runUserCode);
-  document.getElementById('resetBtn').addEventListener('click', resetLevel);
-  loadLevel(1);
-  setInterval(gameLoop, 1000 / FPS);
 }
 
 function resetLevel(){ loadLevel(levelData.id); }
