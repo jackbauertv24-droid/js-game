@@ -217,8 +217,7 @@ function initSandbox(){
         attack: () => parent.postMessage({type:'cmd', cmd:{type:'attack'}}, '*'),
         pick: typeName => parent.postMessage({type:'cmd', cmd:{type:'pick', typeName}}, '*'),
         log: msg => parent.postMessage({type:'log', msg}, '*'),
-        getEnemies: () => enemyData.slice(),
-        getPlayer: () => ({...playerPos})
+        getEnemies: () => enemyData.slice()
       };
       // expose shortcuts so user code can call move() directly
       const move = API.move;
@@ -226,7 +225,6 @@ function initSandbox(){
       const pick = API.pick;
       const log = API.log;
       const getEnemies = API.getEnemies;
-      const getPlayer = API.getPlayer;
       // receive messages from parent
       window.addEventListener('message', e=>{
         const d = e.data;
