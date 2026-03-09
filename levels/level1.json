@@ -11,6 +11,8 @@
   "enemies": [],
   "items": [],
   "objective": "Move the hero two tiles to the right.",
+  "hint": "Use move('right') twice."
+
   "api": ["move","log"],
   "solution": "move('right'); move('right');"
 }

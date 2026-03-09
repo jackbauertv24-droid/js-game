@@ -22,6 +22,7 @@
   </div>
   <div id="uiWrapper">
     <div id="objective">Loading...</div>
+    <div id="hints" style="margin-bottom:5px; color:#ff0; font-size:0.9em;"></div>
     <textarea id="codeEditor" spellcheck="false"></textarea>
     <button id="runBtn">Run</button>
     <button id="resetBtn">Reset Level</button>
@@ -115,6 +116,9 @@ async function loadLevel(id){
   items = levelData.items.map(i=>{ const e = new Entity(i.x, i.y, 'item'); e.itemType = i.type; return e; });
   // show objective
   objectiveEl.textContent = `Level ${id}: ${levelData.objective}`;
+  // show hint if provided
+  const hintEl = document.getElementById('hints');
+  hintEl.textContent = levelData.hint || '';
   // preload sandbox (send API list)
   initSandbox();
 }
