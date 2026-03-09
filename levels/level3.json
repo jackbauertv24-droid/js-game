@@ -1,0 +1,16 @@
+{
+  "name": "Level 3 - Loop Movement",
+  "tiles": [
+    [0,0,0,0,0],
+    [0,1,1,1,0],
+    [0,1,1,1,0],
+    [0,1,1,1,0],
+    [0,0,0,0,0]
+  ],
+  "playerStart": { "x": 1, "y": 2 },
+  "enemies": [{ "x": 4, "y": 2 }],
+  "items": [],
+  "objective": "Use a loop to move right until you are next to the enemy, then attack.",
+  "api": ["move","attack","log"],
+  "solution": "while(true){move('right'); if(player.x===3) break;} attack();"
+}

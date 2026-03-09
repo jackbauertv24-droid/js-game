@@ -1,0 +1,16 @@
+{
+  "name": "Level 1 - Move Right",
+  "tiles": [
+    [0,0,0,0,0],
+    [0,1,1,1,0],
+    [0,1,1,1,0],
+    [0,1,1,1,0],
+    [0,0,0,0,0]
+  ],
+  "playerStart": { "x": 1, "y": 2 },
+  "enemies": [],
+  "items": [],
+  "objective": "Move the hero two tiles to the right.",
+  "api": ["move","log"],
+  "solution": "move('right'); move('right');"
+}

@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>JS Puzzle RPG</title>
+<style>
+  body { margin:0; font-family:Arial, sans-serif; background:#222; color:#eee; }
+  #gameContainer { display:flex; height:100vh; }
+  #canvasWrapper { flex:2; display:flex; align-items:center; justify-content:center; background:#000; }
+  canvas { background:#111; image-rendering:pixelated; }
+  #uiWrapper { flex:1; display:flex; flex-direction:column; padding:10px; background:#333; }
+  textarea { flex:1; width:100%; resize:none; font-family:monospace; background:#111; color:#0f0; border:none; padding:5px; }
+  button { margin-top:5px; padding:5px; background:#555; color:#fff; border:none; cursor:pointer; }
+  #console { height:100px; overflow:auto; background:#111; color:#fff; font-size:0.9em; padding:5px; margin-top:5px; }
+  #objective { margin-bottom:5px; font-weight:bold; }
+</style>
+</head>
+<body>
+<div id="gameContainer">
+  <div id="canvasWrapper">
+    <canvas id="gameCanvas" width="640" height="480"></canvas>
+  </div>
+  <div id="uiWrapper">
+    <div id="objective">Loading...</div>
+    <textarea id="codeEditor" spellcheck="false"></textarea>
+    <button id="runBtn">Run</button>
+    <button id="resetBtn">Reset Level</button>
+    <div id="console"></div>
+  </div>
+</div>
+
+<!-- Sandbox iframe (hidden) -->
+<iframe id="sandbox" sandbox="allow-scripts" style="display:none;"></iframe>
+
+<script>
+/* ==================== CONFIG ==================== */
+const TILE_SIZE = 32; // 32px tiles
+const MAP_COLS = 20; // width in tiles
+const MAP_ROWS = 15; // height in tiles
+const FPS = 60;
+const MAX_STEPS = 500; // prevent infinite loops in sandbox
+
+/* ==================== GLOBAL STATE ==================== */
+let canvas, ctx;
+let levelData = null; // current level JSON
+let player = null;
+let enemies = [];
+let items = [];
+let commandQueue = [];
+let sandboxReady = false;
+let consoleEl, objectiveEl;
+
+/* ==================== UTILITIES ==================== */
+function log(msg) {
+  const p = document.createElement('div');
+  p.textContent = msg;
+  consoleEl.appendChild(p);
+  consoleEl.scrollTop = consoleEl.scrollHeight;
+}
+function clearConsole() { consoleEl.innerHTML = '';
+}
+function loadJSON(path) {
+  return fetch(path).then(r=>r.json());
+}
+
+/* ==================== ENTITY CLASSES ==================== */
+class Entity {
+  constructor(x, y, type) {
+    this.x = x; this.y = y; this.type = type; // 'player','enemy','item'
+    this.hp = type==='enemy'?1:undefined;
+  }
+  draw() {
+    const colors = {player:'#0f0', enemy:'#f00', item:'#ff0'};
+    ctx.fillStyle = colors[this.type] || '#fff';
+    ctx.fillRect(this.x*TILE_SIZE, this.y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+  }
+}
+
+/* ==================== GAME LOGIC ==================== */
+function init() {
+  canvas = document.getElementById('gameCanvas');
+  ctx = canvas.getContext('2d');
+  consoleEl = document.getElementById('console');
+  objectiveEl = document.getElementById('objective');
+  document.getElementById('runBtn').addEventListener('click', runUserCode);
+  document.getElementById('resetBtn').addEventListener('click', resetLevel);
+  // load first level
+  loadLevel(1);
+  // start render loop
+  setInterval(gameLoop, 1000/FPS);
+}
+
+function resetLevel(){
+  loadLevel(levelData.id);
+}
+
+async function loadLevel(id){
+  clearConsole();
+  commandQueue = [];
+  const data = await loadJSON(`levels/level${id}.json`);
+  levelData = data; levelData.id = id;
+  // parse map tiles (0=wall,1=floor)
+  // ensure canvas size matches map
+  canvas.width = levelData.tiles[0].length * TILE_SIZE;
+  canvas.height = levelData.tiles.length * TILE_SIZE;
+  // create player
+  player = new Entity(levelData.playerStart.x, levelData.playerStart.y, 'player');
+  // create enemies
+  enemies = levelData.enemies.map(e=>new Entity(e.x, e.y, 'enemy'));
+  // items (not used in logic yet)
+  items = levelData.items.map(i=>{ const e = new Entity(i.x, i.y, 'item'); e.itemType = i.type; return e; });
+  // show objective
+  objectiveEl.textContent = `Level ${id}: ${levelData.objective}`;
+  // preload sandbox (send API list)
+  initSandbox();
+}
+
+function drawMap(){
+  const rows = levelData.tiles.length;
+  const cols = levelData.tiles[0].length;
+  for(let y=0;y<rows;y++){
+    for(let x=0;x<cols;x++){
+      ctx.fillStyle = levelData.tiles[y][x]===0 ? '#444' : '#222';
+      ctx.fillRect(x*TILE_SIZE, y*TILE_SIZE, TILE_SIZE, TILE_SIZE);
+    }
+  }
+}
+
+function gameLoop(){
+  if(!levelData) return;
+  // update game state
+  processCommands();
+  // simple enemy AI: move randomly one tile if possible
+  enemies.forEach(e=>{
+    const dirs = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
+    const dir = dirs[Math.floor(Math.random()*dirs.length)];
+    const nx=e.x+dir.dx, ny=e.y+dir.dy;
+    if(isWalkable(nx,ny) && !isOccupied(nx,ny)) {
+      e.x=nx; e.y=ny;
+    }
+  });
+  // render
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  drawMap();
+  player.draw();
+  enemies.forEach(e=>e.draw());
+  items.forEach(i=>i.draw());
+  // win condition
+  if(enemies.length===0){
+    log('✅ Level cleared!');
+    // auto‑load next level after short delay
+    setTimeout(()=>{ if(levelData.id<10) loadLevel(levelData.id+1); },1500);
+  }
+}
+
+function isWalkable(x,y){
+  if(y<0||y>=levelData.tiles.length||x<0||x>=levelData.tiles[0].length) return false;
+  return levelData.tiles[y][x]===1; // 1 = floor
+}
+function isOccupied(x,y){
+  if(player.x===x && player.y===y) return true;
+  return enemies.some(e=>e.x===x && e.y===y);
+}
+
+function enqueueCommand(cmd){
+  commandQueue.push(cmd);
+}
+
+function processCommands(){
+  if(commandQueue.length===0) return;
+  const cmd = commandQueue.shift();
+  // cmd: {type:'move', dir:'up'} etc.
+  switch(cmd.type){
+    case 'move':
+      const dirMap={up:{dx:0,dy:-1},down:{dx:0,dy:1},left:{dx:-1,dy:0},right:{dx:1,dy:0}};
+      const d = dirMap[cmd.dir];
+      if(d){
+        const nx=player.x+d.dx, ny=player.y+d.dy;
+        if(isWalkable(nx,ny) && !isOccupied(nx,ny)) { player.x=nx; player.y=ny; }
+      }
+      break;
+    case 'attack':
+      // attack adjacent enemy (first found)
+      const adj = [{dx:0,dy:-1},{dx:0,dy:1},{dx:-1,dy:0},{dx:1,dy:0}];
+      for(const a of adj){
+        const ex=player.x+a.dx, ey=player.y+a.dy;
+        const idx=enemies.findIndex(e=>e.x===ex && e.y===ey);
+        if(idx!==-1){ enemies.splice(idx,1); log('💥 Enemy defeated'); break; }
+      }
+      break;
+case 'pick':
+        // find item at player position with matching type
+        const idxItem = items.findIndex(it=> it.x===player.x && it.y===player.y && it.type===cmd.typeName);
+        if(idxItem!==-1){
+          const taken = items.splice(idxItem,1)[0];
+          log(`Picked up ${taken.type}`);
+        } else {
+          log('Nothing to pick here');
+        }
+        break;
+    default:
+      console.warn('Unknown command',cmd);
+  }
+}
+
+/* ==================== SANDBOX ==================== */
+function initSandbox(){
+  const iframe = document.getElementById('sandbox');
+  // Build srcdoc with a tiny wrapper that receives code via postMessage
+  const src = `
+    <script>
+      let steps=0;
+      const MAX_STEPS=${MAX_STEPS};
+      let enemyData = [];
+      const API = {
+        move: dir => parent.postMessage({type:'cmd', cmd:{type:'move', dir}}, '*'),
+        attack: () => parent.postMessage({type:'cmd', cmd:{type:'attack'}}, '*'),
+        pick: typeName => parent.postMessage({type:'cmd', cmd:{type:'pick', typeName}}, '*'),
+        log: msg => parent.postMessage({type:'log', msg}, '*'),
+        getEnemies: () => enemyData.slice(),
+        getPlayer: () => ({...playerPos})
+      };
+      // expose shortcuts so user code can call move() directly
+      const move = API.move;
+      const attack = API.attack;
+      const pick = API.pick;
+      const log = API.log;
+      const getEnemies = API.getEnemies;
+      const getPlayer = API.getPlayer;
+      // receive messages from parent
+      window.addEventListener('message', e=>{
+        const d = e.data;
+        if(d.type==='init'){
+          enemyData = d.enemies || [];
+        } else if(d.type==='run'){
+          try {
+            const fn = new Function('API', d.code);
+            fn(API);
+          } catch(err){
+            parent.postMessage({type:'error', msg: err.message}, '*');
+          }
+        }
+      });
+    </script>
+  `;
+  iframe.srcdoc = src;
+  // ensure sandbox is ready before we can send code
+  sandboxReady = true;
+}
+
+function runUserCode(){
+  if(!sandboxReady){ log('Sandbox not ready'); return; }
+  const code = document.getElementById('codeEditor').value;
+  const iframe = document.getElementById('sandbox');
+  clearConsole();
+  // ensure we have only one listener
+  window.removeEventListener('message', sandboxListener);
+  window.addEventListener('message', sandboxListener);
+  // first send current enemies data
+  const enemyInfo = enemies.map(e=>({x:e.x, y:e.y}));
+  iframe.contentWindow.postMessage({type:'init', enemies: enemyInfo, player: {x: player.x, y: player.y}}, '*');
+  // then send the script to run
+  iframe.contentWindow.postMessage({type:'run', code}, '*');
+}
+
+function sandboxListener(event){
+  const data = event.data;
+  if(!data) return;
+  if(data.type==='cmd'){
+    enqueueCommand(data.cmd);
+  } else if(data.type==='log'){
+    log('[script] '+data.msg);
+  } else if(data.type==='error'){
+    log('[error] '+data.msg);
+  }
+}
+
+window.onload = init;
+</script>
+</body>
+</html>

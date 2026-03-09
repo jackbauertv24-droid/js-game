@@ -1,0 +1,20 @@
+{
+  "name": "Level 5 - Attack All",
+  "tiles": [
+    [0,0,0,0,0,0,0],
+    [0,1,1,1,1,1,0],
+    [0,1,1,1,1,1,0],
+    [0,1,1,1,1,1,0],
+    [0,0,0,0,0,0,0]
+  ],
+  "playerStart": { "x": 1, "y": 2 },
+  "enemies": [
+    { "x": 4, "y": 2 },
+    { "x": 5, "y": 3 },
+    { "x": 3, "y": 4 }
+  ],
+  "items": [],
+  "objective": "Write a loop that attacks every enemy on the map.",
+  "api": ["move","attack","log","getEnemies"],
+  "solution": "while (getEnemies().length > 0) { // naive: move right until adjacent then attack\n  move('right'); attack(); }"
+}

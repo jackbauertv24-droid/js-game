@@ -1,0 +1,20 @@
+{
+  "name": "Level 9 - Arrays",
+  "tiles": [
+    [0,0,0,0,0,0,0,0,0,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [0,1,1,1,1,1,1,1,1,0],
+    [0,0,0,0,0,0,0,0,0,0]
+  ],
+  "playerStart": { "x": 1, "y": 2 },
+  "enemies": [],
+  "items": [
+    { "x": 3, "y": 2, "type": "coin" },
+    { "x": 5, "y": 2, "type": "coin" },
+    { "x": 7, "y": 2, "type": "coin" }
+  ],
+  "objective": "Collect all coins using an array and a loop.",
+  "api": ["move","pick","log"],
+  "solution": "let coins = [{x:3,y:2},{x:5,y:2},{x:7,y:2}]; for(let i=0;i<coins.length;i++){ while(player.x < coins[i].x){ move('right'); } pick('coin'); }"
+}

@@ -1,0 +1,16 @@
+{
+  "name": "Level 7 - Define Function",
+  "tiles": [
+    [0,0,0,0,0,0,0],
+    [0,1,1,1,1,1,0],
+    [0,1,1,1,1,1,0],
+    [0,1,1,1,1,1,0],
+    [0,0,0,0,0,0,0]
+  ],
+  "playerStart": { "x": 1, "y": 2 },
+  "enemies": [{ "x": 5, "y": 2 }],
+  "items": [],
+  "objective": "Create a function called goRight() that moves right one tile, then call it twice and attack.",
+  "api": ["move","attack","log"],
+  "solution": "function goRight(){ move('right'); } goRight(); goRight(); attack();"
+}

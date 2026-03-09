@@ -1,0 +1,16 @@
+{
+  "name": "Level 4 - Conditional",
+  "tiles": [
+    [0,0,0,0,0],
+    [0,1,1,1,0],
+    [0,1,1,1,0],
+    [0,1,1,1,0],
+    [0,0,0,0,0]
+  ],
+  "playerStart": { "x": 1, "y": 2 },
+  "enemies": [{ "x": 3, "y": 2 }],
+  "items": [],
+  "objective": "If an enemy is directly to your right, attack it; otherwise move right.",
+  "api": ["move","attack","log","getEnemies"],
+  "solution": "if (getEnemies().some(e => e.x === player.x + 1 && e.y === player.y)) { attack(); } else { move('right'); }"
+}

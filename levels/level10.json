@@ -1,0 +1,22 @@
+{
+  "name": "Level 10 - Final Challenge",
+  "tiles": [
+    [0,0,0,0,0,0,0,0,0,0,0,0],
+    [0,1,1,1,1,1,1,1,1,1,1,0],
+    [0,1,1,1,1,1,1,1,1,1,1,0],
+    [0,1,1,1,1,1,1,1,1,1,1,0],
+    [0,0,0,0,0,0,0,0,0,0,0,0]
+  ],
+  "playerStart": { "x": 1, "y": 2 },
+  "enemies": [
+    { "x": 5, "y": 2 },
+    { "x": 8, "y": 2 }
+  ],
+  "items": [
+    { "x": 3, "y": 2, "type": "key" },
+    { "x": 10, "y": 2, "type": "treasure" }
+  ],
+  "objective": "Collect the key, defeat both enemies, then collect the treasure. Use functions, loops, and conditionals.",
+  "api": ["move","attack","pick","log","getEnemies"],
+  "solution": "function goTo(x){ while(player.x < x){ move('right'); } }\ngoTo(3); pick('key');\nwhile(getEnemies().length>0){ let e=getEnemies()[0]; while(player.x < e.x-1){ move('right'); } attack(); }\ngoTo(10); pick('treasure');"
+}

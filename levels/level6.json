@@ -1,0 +1,16 @@
+{
+  "name": "Level 6 - Pick Item",
+  "tiles": [
+    [0,0,0,0,0],
+    [0,1,1,1,0],
+    [0,1,1,1,0],
+    [0,1,1,1,0],
+    [0,0,0,0,0]
+  ],
+  "playerStart": { "x": 1, "y": 2 },
+  "enemies": [],
+  "items": [{ "x": 3, "y": 2, "type": "gold" }],
+  "objective": "Move to the gold item and pick it up.",
+  "api": ["move","pick","log"],
+  "solution": "move('right'); move('right'); pick('gold');"
+}
