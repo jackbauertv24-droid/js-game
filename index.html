@@ -43,6 +43,7 @@ const MAX_STEPS = 500; // prevent infinite loops in sandbox
 
 /* ==================== GLOBAL STATE ==================== */
 let canvas, ctx;
+let goalPos = null;
 let levelData = null; // current level JSON
 let player = null;
 let enemies = [];
@@ -119,6 +120,8 @@ async function loadLevel(id){
   // show hint if provided
   const hintEl = document.getElementById('hints');
   hintEl.textContent = levelData.hint || '';
+  // set goal position if provided
+  goalPos = levelData.goal || null;
   // preload sandbox (send API list)
   initSandbox();
 }
@@ -152,7 +155,9 @@ function gameLoop(){
   enemies.forEach(e=>e.draw());
   items.forEach(i=>i.draw());
   // win condition (requires user to have executed a command)
-  if(enemies.length===0 && commandExecuted && userRun){
+  // determine if goal is met (if a goal is defined)
+  const goalMet = goalPos ? (player.x===goalPos.x && player.y===goalPos.y) : true;
+  if(enemies.length===0 && commandExecuted && userRun && goalMet){
     log('✅ Level cleared!');
     setTimeout(()=>{ if(levelData.id<10) loadLevel(levelData.id+1); },1500);
   }

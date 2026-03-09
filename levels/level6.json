@@ -11,6 +11,7 @@
   "enemies": [],
   "items": [{ "x": 3, "y": 2, "type": "gold" }],
   "objective": "Move to the gold item and pick it up.",
+  "goal": {"x":3,"y":2},
   "api": ["move","pick","log"],
   "solution": "move('right'); move('right'); pick('gold');"
 }
